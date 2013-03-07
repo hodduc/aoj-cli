@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 # Algospot Online Judge Command-line interface
 # Author: Junseong Lee <hodduc@sparcs.kaist.ac.kr>
 # Created: 2013-03-01
@@ -10,6 +11,7 @@ import argparse
 import urllib
 import urllib2
 import getpass
+import unicodedata
 from cookielib import MozillaCookieJar
 
 # -- Globals
@@ -108,6 +110,31 @@ class AOJClient(object):
         request = urllib2.Request(url=SITE_PREFIX+'judge/submission/recent/?problem='+problem_name)
         response = self.opener.open(request)
 
+        try:
+            import lxml.html
+        except ImportError:
+            print 'lxml library is needed for parsing HTML'
+            return
+
+        html = lxml.html.fromstring(unicode(response.read().decode('utf8')))
+        context = {}
+        fields = ('id', 'problem', 'user', 'language', 'length', 'state', 'stats', 'submitted_on')
+        length = {'id': 9, 'problem': 15, 'user': 15, 'language': 5, 'length': 7, 'state': 15, 'stats': 7, 'submitted_on': 15}
+        template = u'%(id)s %(problem)s %(user)s %(language)s %(length)s %(state)s %(stats)s %(submitted_on)s'
+
+        def width(string):
+            return sum(1+(unicodedata.east_asian_width(c) in 'WF') for c in string)
+
+        for tr in html.cssselect('table.submission_list tr'):
+            for field in fields:
+                element = tr.find_class(field)
+                if element:
+                    context[field] = unicode(element[0].text_content().strip())
+                else:
+                    context[field] = u''
+                context[field] = ' ' * (length[field] - width(context[field])) + context[field]
+            print template % context
+
         pass
         # XXX NOT YET IMPLEMENTED
 
@@ -120,12 +147,12 @@ class AOJSubmission(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='AOJ-Cli: Command line interface for Algospot Online Judge (http://www.algospot.com)')
     parser.add_argument('problem', metavar='PROBNAME', type=str, nargs=1, help='name of the problem')
-    parser.add_argument('source', type=str, nargs=1, help='filename to submit')
+    parser.add_argument('source', type=str, nargs='?', help='filename to submit')
 
     args = parser.parse_args()
     client = AOJClient()
     if args.source:
-        submission = AOJSubmission(args.problem[0], args.source[0])
+        submission = AOJSubmission(args.problem[0], args.source)
         client.submit(submission)
     else:
         client.get_submission_list(args.problem[0].upper())
