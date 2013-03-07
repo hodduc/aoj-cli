@@ -135,9 +135,6 @@ class AOJClient(object):
                 context[field] = ' ' * (length[field] - width(context[field])) + context[field]
             print template % context
 
-        pass
-        # XXX NOT YET IMPLEMENTED
-
 class AOJSubmission(object):
     def __init__(self, problem, source):
         self.problem = problem.upper()
